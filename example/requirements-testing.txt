@@ -1,0 +1,13 @@
+pylint
+coverage
+unittest2
+django-test-utils
+fabric
+factory_boy
+bpython
+django-nose
+nose-progressive
+mock
+django-debug-toolbar
+Werkzeug
+ipdb

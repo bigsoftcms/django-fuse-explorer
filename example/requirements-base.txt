@@ -1,0 +1,7 @@
+-e ..
+
+Django
+django-extensions
+simplejson
+python-cjson
+
