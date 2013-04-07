@@ -1,7 +1,8 @@
--e ..
+#-e ..
 
 Django
 django-extensions
 simplejson
 python-cjson
-
+# needs (on Debian based dists) libfuse-dev
+fuse-python

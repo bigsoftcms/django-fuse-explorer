@@ -117,11 +117,11 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions',
+#    'django_extensions',
     'shop',
     'fuse_explorer',
-    'debug_toolbar',
-    'django_nose',
+#    'debug_toolbar',
+#    'django_nose',
 )
 
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
