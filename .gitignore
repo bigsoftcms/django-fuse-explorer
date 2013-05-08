@@ -39,3 +39,4 @@ pip-log.txt
 .dropbox
 cache
 local_settings.py
+example/fuse_explorer

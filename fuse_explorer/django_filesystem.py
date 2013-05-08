@@ -1,10 +1,12 @@
 import fuse
 
-from time import time
+import time
 
 import stat    # for file properties
 import os      # for filesystem modes (O_RDONLY, etc)
 import errno   # for error number codes (ENOENT, etc) - note: these must be returned as negatives
+from django.db.models.loading import get_apps
+from django.db.models import loading
 
 fuse.fuse_python_api = (0, 2)
 
@@ -35,8 +37,57 @@ fuse.fuse_python_api = (0, 2)
 #    else:
 #        return path.split('/')
 
+class MyStat(fuse.Stat):
+    def __init__(self):
+        self.st_mode = stat.S_IFDIR | 0755
+        self.st_ino = 0
+        self.st_dev = 0
+        self.st_nlink = 2
+        self.st_size = 4096
+        self.st_uid = 0
+        self.st_gid = 0
+        self.st_atime = 0
+        self.st_mtime = 0
+        self.st_ctime = 0
+        self.st_blocks = 0
+        self.st_blksize = 0
+        self.st_rdev = 0
+
+class ModelPlugin():
+    apps = loading.cache.app_models
+
+    def getattr(self, path_elements, st):
+        if len(path_elements) == 3:
+            st.st_mode = stat.S_IFREG | 0666
+            st.st_nlink = 1
+        return st
+
+    def readdir(self, path_elements):
+        print path_elements
+        if len(path_elements) == 0:
+            print self.apps.keys()
+            return [app.encode('utf-8') for app in self.apps.keys()]
+        elif len(path_elements) == 1:
+            app = self.apps[path_elements[0]]
+            print app.keys()
+            return app.keys()
+        elif len(path_elements) == 2:
+            model = self.apps[path_elements[0]][path_elements[1]]
+            return [str(obj).encode('utf-8') for obj in model.objects.all()]
+        return -errno.ENOENT
+
+
+PLUGINS = {
+    'models': ModelPlugin(),
+}
+
+def get_path_elements(path):
+    pe = path.split('/')[1:]
+    print pe
+    return pe
+
 class DjangoFS(fuse.Fuse):
-    """
+    """ TODO
     """
 
     def __init__(self, *args, **kw):
@@ -64,26 +115,39 @@ class DjangoFS(fuse.Fuse):
 #        depth = getDepth(path) # depth of path, zero-based from root
 #        pathparts = getParts(path) # the actual parts of the path
 
-        st = fuse.Stat()  
+        st = MyStat()  
         st.st_mode = stat.S_IFDIR | 0755  
         st.st_nlink = 2  
         st.st_atime = int(time.time())  
         st.st_mtime = st.st_atime  
         st.st_ctime = st.st_atime  
 
-        if path != '/':
+        pe = get_path_elements(path)
+        if len(pe) == 1 and pe[0] in [''] + PLUGINS.keys(): # '/' or '/something'
+            pass
+        elif pe[0] in PLUGINS:
+            PLUGINS[pe[0]].getattr(pe[1:], st)
+        else:
             return -errno.ENOENT
-#            return -errno.ENOSYS
+
         return st  
 
+    def readdir(self, path, offset):
+        print '*** readdir', path
+        directories = ['.', '..']
 
-    def getdir(self, path):
-        """
-        return: [[('file1', 0), ('file2', 0), ... ]]
-        """
-
-        print '*** getdir', path
-        return -errno.ENOSYS
+        if path == '/':
+            directories += PLUGINS.keys()
+        else:
+            pe = get_path_elements(path)
+            try:
+                plugin = PLUGINS[pe[0]]
+            except KeyError:
+                yield -errno.ENOENT
+            directories += plugin.readdir(pe[1:])
+        print "yielding", directories
+        for e in directories:
+            yield fuse.Direntry(e)
 
     def mythread ( self ):
         print '*** mythread'
